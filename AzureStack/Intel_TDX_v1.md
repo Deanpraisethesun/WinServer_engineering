@@ -38,7 +38,8 @@
 - **DIMM 配置對稱性**：若配置不當（如非對稱安裝），可能導致 TDX 功能啟用失敗。  
 - **BIOS 差異**：不同廠商（如 AMI、Insyde）的 BIOS 介面可能不同，建議參考 OEM/ODM 提供的具體指南。
 
-  -**HPE:**
+  -**HPE BIOS:**
+  
   Enabling or disabling Trust Domain Extension (TDX)
   
   Prerequisites
