@@ -37,20 +37,31 @@
 #### **注意事項**
 - **DIMM 配置對稱性**：若配置不當（如非對稱安裝），可能導致 TDX 功能啟用失敗。  
 - **BIOS 差異**：不同廠商（如 AMI、Insyde）的 BIOS 介面可能不同，建議參考 OEM/ODM 提供的具體指南。
+
   -**HPE:**
   Enabling or disabling Trust Domain Extension (TDX)
+  
   Prerequisites
+  
   Processor Physical Addressing is Default.
+  
   Total Memory Encryption (TME) is Enabled.
+  
   Total Memory Encryption Multi-Key (TME-MK) is Enabled.
+  
   Intel(R) Software Guard Extensions (SGX) is Enabled.
+  
 
     Procedure
+  
     From the System Utilities screen, select System Configuration > BIOS/Platform Configuration (RBSU) > Server Security > Intel Security Options > Trust Domain Extension (TDX).
+  
     Select a setting:
-    Enabled
-    Disabled (Default)
-    Save your setting.
+    * Enabled
+  
+    * Disabled (預設是關閉)
+
+    
 
 - **記憶體相容性**：需使用符合規格的 DDR5 ECC 記憶體，避免使用未經驗證的模組。  
 
