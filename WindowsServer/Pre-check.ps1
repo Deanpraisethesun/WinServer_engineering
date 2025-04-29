@@ -1,47 +1,62 @@
 ### 初始化 ###
 $rootDir = Split-Path $PSScriptRoot -Parent
 $jsonConfig = Get-Content "$rootDir\TestRecipe.json" | ConvertFrom-Json
-$TestCases = Get-Content "TestCase.txt"
+$testCases = Get-Content "TestCase.txt"
 
-### 狀態與輸出格式 ###
-enum Status { 通過; 失敗 }
-$statusIcons = @{ 
-    [Status]::通過 = @{ Object="[✓] "; Color="Green" }
-    [Status]::失敗 = @{ Object="[✗] "; Color="Red" }
-}
+### 狀態碼 ###
+enum ExitCode { Success=0; Failure=1 }
 
-### 核心檢查函式 ###
-function Test-SMBProtocol {
-    param([ValidateSet("v1","v2")]$Version)
-    $config = Get-SmbServerConfiguration
-    return $Version -eq "v1" ? $config.EnableSMB1Protocol : $config.EnableSMB2Protocol
-}
+### 安全協議檢查函數 ###
+function Test-SecurityProtocol {
+    param(
+        [ValidateSet('SMB','RDP')]
+        $Protocol
+    )
 
-function Confirm-SMBStatus {
-    $result = @{
-        "SMBv1禁用" = (Test-SMBProtocol "v1") -eq $false
-        "SMBv2啟用" = (Test-SMBProtocol "v2") -eq $true
+    $result = [ExitCode]::Success
+    switch ($Protocol) {
+        'SMB' { 
+            $config = Get-SmbServerConfiguration
+            if ($config.EnableSMB1Protocol -or $config.EnableSMB2Protocol) { 
+                $result = [ExitCode]::Failure
+            }
+        }
+        'RDP' {
+            $regValue = Get-ItemPropertyValue "HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server" -Name fDenyTSConnections
+            if ($regValue -ne 1) { $result = [ExitCode]::Failure }
+        }
     }
-    $result.Values -contains $false ? [Status]::失敗 : [Status]::通過
+
+    Write-Host "[$('✓','✗')[$result]] 已禁用$Protocol" -ForegroundColor (@('Green','Red')[$result])
+    return $result
 }
 
-function Confirm-OSBuild {
-    $osVer = (Get-ComputerInfo).WindowsVersion
-    $buildMatch = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion").UBR -eq $jsonConfig.BuildNumber
-    return $buildMatch ? [Status]::通過 : [Status]::失敗
+### 系統版本檢查函數 ###
+function Get-SystemBuildVersion {
+    $osInfo = [regex]::Match((systeminfo), 'OS Name:\s+Microsoft Windows Server (\d{4})')
+    $osVer = "WS$($osInfo.Groups[1].Value)"
+    
+    $buildInfo = if ($osInfo.Groups[1].Value -eq '2016') {
+        (Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion').UBR
+    } else {
+        [regex]::Match((cmd /c ver), '\.(\d+)\]').Groups[1].Value
+    }
+
+    [PSCustomObject]@{
+        OSVersion = $osVer
+        BuildNumber = $buildInfo
+        ExpectedBuild = $jsonConfig.OS_VER.$osVer
+    }
 }
 
 ### 主執行流程 ###
 try {
-    $TestCases.ForEach{
-        $status = & "Confirm-$($_)"
-        $output = $statusIcons[$status]
-        Write-Host $output.Object -NoNewline -ForegroundColor $output.Color
-        Write-Host $_ 
+    $testCases.ForEach{
+        if (Test-Path "Function:$_") {
+            & $_ | ForEach-Object { 
+                Write-Host "檢查項目：$_" 
+            }
+        }
     }
-    exit [int][Status]::通過
 }
-catch { 
-    Write-Error "檢查程序異常中斷"
-    exit [int][Status]::失敗
-}
+catch { Write-Error "執行失敗"; exit [ExitCode]::Failure }
